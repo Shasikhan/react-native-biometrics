@@ -98,29 +98,55 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
         try {
             if (isCurrentSDKMarshmallowOrLater()) {
                 deleteBiometricKey();
-                KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
-                KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(biometricKeyAlias, KeyProperties.PURPOSE_SIGN)
-                        .setDigests(KeyProperties.DIGEST_SHA256)
-                        .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                        .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
-                        .setUserAuthenticationRequired(true)
-                        .build();
-                keyPairGenerator.initialize(keyGenParameterSpec);
+                KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
+                    KeyProperties.KEY_ALGORITHM_RSA, 
+                    "AndroidKeyStore"
+                );
 
-                KeyPair keyPair = keyPairGenerator.generateKeyPair();
+                int[] preferredKeySizes = {4096, 3072, 2048}; // try bigger first
+                KeyPair keyPair = null;
+                int chosenSize = -1;
+
+                for (int size : preferredKeySizes) {
+                    try {
+                        KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(
+                                    biometricKeyAlias,
+                                    KeyProperties.PURPOSE_SIGN
+                                )
+                                .setDigests(KeyProperties.DIGEST_SHA256)
+                                .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                                .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(size, RSAKeyGenParameterSpec.F4))
+                                .setUserAuthenticationRequired(true)
+                                .build();
+
+                        keyPairGenerator.initialize(keyGenParameterSpec);
+                        keyPair = keyPairGenerator.generateKeyPair();
+                        chosenSize = size;
+                        break; // success, stop trying smaller sizes
+                    } catch (Exception inner) {
+                        // Failed for this size, try next smaller one
+                    }
+                }
+
+                if (keyPair == null) {
+                    promise.reject("KeyGenerationFailed", "Unable to generate RSA key pair with supported size");
+                    return;
+                }
+
                 PublicKey publicKey = keyPair.getPublic();
                 byte[] encodedPublicKey = publicKey.getEncoded();
-                String publicKeyString = Base64.encodeToString(encodedPublicKey, Base64.DEFAULT);
-                publicKeyString = publicKeyString.replaceAll("\r", "").replaceAll("\n", "");
+                String publicKeyString = Base64.encodeToString(encodedPublicKey, Base64.NO_WRAP);
 
                 WritableMap resultMap = new WritableNativeMap();
                 resultMap.putString("publicKey", publicKeyString);
+                resultMap.putInt("keySize", chosenSize);
                 promise.resolve(resultMap);
+
             } else {
-                promise.reject("Cannot generate keys on android versions below 6.0", "Cannot generate keys on android versions below 6.0");
+                promise.reject("UnsupportedVersion", "Cannot generate keys on android versions below 6.0");
             }
         } catch (Exception e) {
-            promise.reject("Error generating public private keys: " + e.getMessage(), "Error generating public private keys");
+            promise.reject("KeyGenError", "Error generating public/private keys: " + e.getMessage());
         }
     }
 
