@@ -45,19 +45,22 @@ RCT_EXPORT_METHOD(isSensorAvailable: (NSDictionary *)params resolver:(RCTPromise
 }
 
 RCT_EXPORT_METHOD(createKeys: (NSDictionary *)params resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     CFErrorRef error = NULL;
     BOOL allowDeviceCredentials = [RCTConvert BOOL:params[@"allowDeviceCredentials"]];
 
     SecAccessControlCreateFlags secCreateFlag = kSecAccessControlBiometryAny;
-
     if (allowDeviceCredentials == TRUE) {
       secCreateFlag = kSecAccessControlUserPresence;
     }
 
-    SecAccessControlRef sacObject = SecAccessControlCreateWithFlags(kCFAllocatorDefault,
-                                                                    kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-                                                                    secCreateFlag, &error);
+    SecAccessControlRef sacObject = SecAccessControlCreateWithFlags(
+      kCFAllocatorDefault,
+      kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+      secCreateFlag,
+      &error
+    );
+
     if (sacObject == NULL || error != NULL) {
       NSString *errorString = [NSString stringWithFormat:@"SecItemAdd can't create sacObject: %@", error];
       reject(@"storage_error", errorString, nil);
@@ -65,39 +68,51 @@ RCT_EXPORT_METHOD(createKeys: (NSDictionary *)params resolver:(RCTPromiseResolve
     }
 
     NSData *biometricKeyTag = [self getBiometricKeyTag];
-    NSDictionary *keyAttributes = @{
-                                    (id)kSecClass: (id)kSecClassKey,
-                                    (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
-                                    (id)kSecAttrKeySizeInBits: @2048,
-                                    (id)kSecPrivateKeyAttrs: @{
-                                        (id)kSecAttrIsPermanent: @YES,
-                                        (id)kSecUseAuthenticationUI: (id)kSecUseAuthenticationUIAllow,
-                                        (id)kSecAttrApplicationTag: biometricKeyTag,
-                                        (id)kSecAttrAccessControl: (__bridge_transfer id)sacObject
-                                        }
-                                    };
 
-    [self deleteBiometricKey];
-    NSError *gen_error = nil;
-    id privateKey = CFBridgingRelease(SecKeyCreateRandomKey((__bridge CFDictionaryRef)keyAttributes, (void *)&gen_error));
+    // Try 4096-bit first
+    NSArray *keySizes = @[@4096, @3072, @2048]; // fallback sequence
 
-    if(privateKey != nil) {
-      id publicKey = CFBridgingRelease(SecKeyCopyPublicKey((SecKeyRef)privateKey));
-      CFDataRef publicKeyDataRef = SecKeyCopyExternalRepresentation((SecKeyRef)publicKey, nil);
-      NSData *publicKeyData = (__bridge NSData *)publicKeyDataRef;
-      NSData *publicKeyDataWithHeader = [self addHeaderPublickey:publicKeyData];
-      NSString *publicKeyString = [publicKeyDataWithHeader base64EncodedStringWithOptions:0];
-
-      NSDictionary *result = @{
-        @"publicKey": publicKeyString,
+    for (NSNumber *size in keySizes) {
+      NSDictionary *keyAttributes = @{
+        (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
+        (id)kSecAttrKeySizeInBits: size,
+        (id)kSecPrivateKeyAttrs: @{
+            (id)kSecAttrIsPermanent: @YES,
+            (id)kSecUseAuthenticationUI: (id)kSecUseAuthenticationUIAllow,
+            (id)kSecAttrApplicationTag: biometricKeyTag,
+            (id)kSecAttrAccessControl: (__bridge_transfer id)sacObject
+        }
       };
-      resolve(result);
-    } else {
-      NSString *message = [NSString stringWithFormat:@"Key generation error: %@", gen_error];
-      reject(@"storage_error", message, nil);
+
+      [self deleteBiometricKey];
+      NSError *genError = nil;
+      SecKeyRef privateKey = SecKeyCreateRandomKey((__bridge CFDictionaryRef)keyAttributes, (void *)&genError);
+
+      if (privateKey != nil) {
+        SecKeyRef publicKey = SecKeyCopyPublicKey(privateKey);
+        CFDataRef publicKeyDataRef = SecKeyCopyExternalRepresentation(publicKey, nil);
+        NSData *publicKeyData = (__bridge NSData *)publicKeyDataRef;
+        NSData *publicKeyDataWithHeader = [self addHeaderPublickey:publicKeyData];
+        NSString *publicKeyString = [publicKeyDataWithHeader base64EncodedStringWithOptions:0];
+
+        NSDictionary *result = @{
+          @"publicKey": publicKeyString,
+          @"keySize": size
+        };
+        resolve(result);
+
+        if (publicKeyDataRef) CFRelease(publicKeyDataRef);
+        if (publicKey) CFRelease(publicKey);
+        if (privateKey) CFRelease(privateKey);
+        return;
+      }
     }
+
+    // If all sizes fail
+    reject(@"storage_error", @"Key generation failed for all attempted sizes", nil);
   });
 }
+
 
 RCT_EXPORT_METHOD(deleteKeys: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
