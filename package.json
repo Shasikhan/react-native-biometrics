@@ -1,15 +1,14 @@
 {
-  "name": "react-native-biometrics",
-  "version": "3.0.1",
+  "name": "@shafqat_ullah/react-native-biometrics",
+  "version": "1.0.0",
   "summary": "A React Native library for biometrics",
   "description": "React Native biometric functionality for signing and encryption",
   "main": "build/cjs/index.js",
   "module": "build/esm/index.js",
   "types": "build/esm/index.d.ts",
   "scripts": {
-    "build": "babel src --out-dir build --extensions \".ts,.js\"",
-    "prepare": "npm run build",
     "clean": "rm -rf build && rm -rf node_modules && npm install",
+    "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc --target es5 --outDir build/cjs --module commonjs",
     "build:esm": "tsc --target es5 --outDir build/esm --module esnext",
     "release": "npm run clean && npm run build && npm publish"
@@ -44,8 +43,6 @@
     "url": "https://github.com/SelfLender/react-native-biometrics/issues"
   },
   "devDependencies": {
-    "@babel/cli": "^7.28.3",
-    "@babel/preset-env": "^7.28.3",
     "typescript": "^3.7.2"
   }
 }
