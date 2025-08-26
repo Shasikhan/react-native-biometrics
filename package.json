@@ -1,5 +1,5 @@
 {
-  "name": "@shafqat_ullah/react-native-biometrics",
+  "name": "edu-react-native-biometrics",
   "version": "1.0.2",
   "summary": "A React Native library for biometrics",
   "description": "React Native biometric functionality for signing and encryption",
