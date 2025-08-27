@@ -29,6 +29,8 @@ import java.security.Signature;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.security.spec.PSSParameterSpec;
+import java.security.spec.MGF1ParameterSpec;
 
 /**
  * Created by brandon on 4/5/18.
@@ -186,7 +188,15 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                                 String cancelButtonText = params.getString("cancelButtonText");
                                 boolean allowDeviceCredentials = params.getBoolean("allowDeviceCredentials");
 
-                                Signature signature = Signature.getInstance("SHA256withRSA");
+                                Signature signature = Signature.getInstance("SHA256withRSA/PSS");
+                                PSSParameterSpec pssSpec = new PSSParameterSpec(
+                                        "SHA-256",
+                                        "MGF1",
+                                        MGF1ParameterSpec.SHA256,
+                                        32,
+                                        1
+                                );
+                                signature.setParameter(pssSpec);
                                 KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
                                 keyStore.load(null);
 
