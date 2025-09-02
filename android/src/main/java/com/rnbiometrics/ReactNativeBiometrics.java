@@ -188,15 +188,24 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                                 String cancelButtonText = params.getString("cancelButtonText");
                                 boolean allowDeviceCredentials = params.getBoolean("allowDeviceCredentials");
 
-                                Signature signature = Signature.getInstance("SHA256withRSA/PSS");
-                                PSSParameterSpec pssSpec = new PSSParameterSpec(
-                                        "SHA-256",
-                                        "MGF1",
-                                        MGF1ParameterSpec.SHA256,
-                                        32,
-                                        1
-                                );
-                                signature.setParameter(pssSpec);
+                                String signatureScheme = params.hasKey("signatureScheme") 
+                                    ? params.getString("signatureScheme") 
+                                    : "PSS"; // default fallback
+
+                                Signature signature;
+                                if ("PSS".equalsIgnoreCase(signatureScheme)) {
+                                    signature = Signature.getInstance("SHA256withRSA/PSS");
+                                    PSSParameterSpec pssSpec = new PSSParameterSpec(
+                                            "SHA-256",
+                                            "MGF1",
+                                            MGF1ParameterSpec.SHA256,
+                                            32,
+                                            1
+                                    );
+                                    signature.setParameter(pssSpec);
+                                } else {
+                                    signature = Signature.getInstance("SHA256withRSA"); // PKCS#1 v1.5
+                                }
                                 KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
                                 keyStore.load(null);
 

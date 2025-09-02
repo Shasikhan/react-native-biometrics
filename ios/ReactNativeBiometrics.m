@@ -143,6 +143,7 @@ RCT_EXPORT_METHOD(createSignature: (NSDictionary *)params resolver:(RCTPromiseRe
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     NSString *promptMessage = [RCTConvert NSString:params[@"promptMessage"]];
     NSString *payload = [RCTConvert NSString:params[@"payload"]];
+    NSString *signatureScheme = [RCTConvert NSString:params[@"signatureScheme"]]; // 👈 pass "pkcs1" or "pss"
 
     NSData *biometricKeyTag = [self getBiometricKeyTag];
     NSDictionary *query = @{
@@ -158,7 +159,19 @@ RCT_EXPORT_METHOD(createSignature: (NSDictionary *)params resolver:(RCTPromiseRe
     if (status == errSecSuccess) {
       NSError *error;
       NSData *dataToSign = [payload dataUsingEncoding:NSUTF8StringEncoding];
-      NSData *signature = CFBridgingRelease(SecKeyCreateSignature(privateKey, kSecKeyAlgorithmRSASignatureMessagePSSSHA256, (CFDataRef)dataToSign, (void *)&error));
+
+      // ✅ Decide algorithm at runtime
+      SecKeyAlgorithm algorithm = kSecKeyAlgorithmRSASignatureMessagePSSSHA256;
+      if ([signatureScheme.lowercaseString isEqualToString:@"pkcs"]) {
+        algorithm = kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256;
+      }
+
+      NSData *signature = CFBridgingRelease(
+          SecKeyCreateSignature(privateKey,
+                                algorithm,
+                                (__bridge CFDataRef)dataToSign,
+                                (void *)&error)
+        );
 
       if (signature != nil) {
         NSString *signatureString = [signature base64EncodedStringWithOptions:0];
