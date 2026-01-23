@@ -104,6 +104,11 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
                         .setUserAuthenticationRequired(true)
+                        .setUserAuthenticationParameters(
+                            0,
+                            KeyProperties.AUTH_BIOMETRIC_STRONG |
+                            KeyProperties.AUTH_DEVICE_CREDENTIAL
+                        )
                         .build();
                 keyPairGenerator.initialize(keyGenParameterSpec);
 
