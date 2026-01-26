@@ -1,6 +1,6 @@
 {
-  "name": "react-native-biometrics",
-  "version": "3.0.1",
+  "name": "react-native-biometrics-2",
+  "version": "3.0.4",
   "summary": "A React Native library for biometrics",
   "description": "React Native biometric functionality for signing and encryption",
   "main": "build/cjs/index.js",
@@ -24,11 +24,11 @@
     "touch-id",
     "face-id"
   ],
-  "homepage": "https://github.com/SelfLender/react-native-biometrics",
+  "homepage": "https://github.com/Shasikhan/rn-biometrics",
   "contributors": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SelfLender/react-native-biometrics.git"
+    "url": "git+https://github.com/Shasikhan/rn-biometrics.git"
   },
   "private": false,
   "author": {
@@ -40,7 +40,7 @@
     "react-native": ">=0.60.0"
   },
   "bugs": {
-    "url": "https://github.com/SelfLender/react-native-biometrics/issues"
+    "url": "https://github.com/Shasikhan/rn-biometrics/issues"
   },
   "devDependencies": {
     "typescript": "^3.7.2"
