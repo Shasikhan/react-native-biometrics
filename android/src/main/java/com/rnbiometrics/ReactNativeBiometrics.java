@@ -29,6 +29,8 @@ import java.security.Signature;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.security.spec.PSSParameterSpec;
+import java.security.spec.MGF1ParameterSpec;
 
 /**
  * Created by brandon on 4/5/18.
@@ -101,9 +103,11 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                 KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
                 KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(biometricKeyAlias, KeyProperties.PURPOSE_SIGN)
                         .setDigests(KeyProperties.DIGEST_SHA256)
-                        .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                        .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
+                        .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PSS)
+                        .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(3072, RSAKeyGenParameterSpec.F4))
                         .setUserAuthenticationRequired(true)
+                        .setInvalidatedByBiometricEnrollment(true)
+                        .setUnlockedDeviceRequired(true)
                         .setUserAuthenticationParameters(
                             0,
                             KeyProperties.AUTH_BIOMETRIC_STRONG |
@@ -165,7 +169,25 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                                 String cancelButtonText = params.getString("cancelButtonText");
                                 boolean allowDeviceCredentials = params.getBoolean("allowDeviceCredentials");
 
-                                Signature signature = Signature.getInstance("SHA256withRSA");
+                                String signatureScheme = params.hasKey("signatureScheme") 
+                                    ? params.getString("signatureScheme") 
+                                    : "PSS"; // default fallback
+
+                                Signature signature;
+                                if ("PSS".equalsIgnoreCase(signatureScheme)) {
+                                    signature = Signature.getInstance("SHA256withRSA/PSS");
+                                    PSSParameterSpec pssSpec = new PSSParameterSpec(
+                                            "SHA-256",
+                                            "MGF1",
+                                            MGF1ParameterSpec.SHA256,
+                                            32,
+                                            1
+                                    );
+                                    signature.setParameter(pssSpec);
+                                } else {
+                                    signature = Signature.getInstance("SHA256withRSA"); // PKCS#1 v1.5
+                                }
+
                                 KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
                                 keyStore.load(null);
 
