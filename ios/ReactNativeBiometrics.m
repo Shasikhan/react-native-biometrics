@@ -78,7 +78,7 @@ RCT_EXPORT_METHOD(createKeys: (NSDictionary *)params resolver:(RCTPromiseResolve
 
     [self deleteBiometricKey];
     NSError *gen_error = nil;
-    SecKeyRef privateKey = SecKeyCreateRandomKey((__bridge CFDictionaryRef)keyAttributes, (void *)&genError);
+    SecKeyRef privateKey = SecKeyCreateRandomKey((__bridge CFDictionaryRef)keyAttributes, (void *)&gen_error);
 
     if(privateKey != nil) {
       SecKeyRef publicKey = SecKeyCopyPublicKey(privateKey);
@@ -146,7 +146,7 @@ RCT_EXPORT_METHOD(createSignature: (NSDictionary *)params resolver:(RCTPromiseRe
     if (status == errSecSuccess) {
       NSError *error;
       NSData *dataToSign = [payload dataUsingEncoding:NSUTF8StringEncoding];
-      
+
       // ✅ Decide algorithm at runtime
       SecKeyAlgorithm algorithm = kSecKeyAlgorithmRSASignatureMessagePSSSHA256;
       if ([signatureScheme.lowercaseString isEqualToString:@"pkcs"]) {

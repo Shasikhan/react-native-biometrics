@@ -1,6 +1,6 @@
 {
   "name": "react-native-biometrics-2",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "summary": "A React Native library for biometrics",
   "description": "React Native biometric functionality for signing and encryption",
   "main": "build/cjs/index.js",
@@ -9,8 +9,8 @@
   "scripts": {
     "clean": "rm -rf build && rm -rf node_modules && npm install",
     "build": "npm run build:cjs && npm run build:esm",
-    "build:cjs": "tsc --target es5 --outDir build/cjs --module commonjs",
-    "build:esm": "tsc --target es5 --outDir build/esm --module esnext",
+    "build:cjs": "tsc --outDir build/cjs --module commonjs",
+    "build:esm": "tsc --outDir build/esm --module esnext",
     "release": "npm run clean && npm run build && npm publish"
   },
   "keywords": [
@@ -43,6 +43,6 @@
     "url": "https://github.com/Shasikhan/rn-biometrics/issues"
   },
   "devDependencies": {
-    "typescript": "^3.7.2"
+    "typescript": "^6.0.2"
   }
 }
