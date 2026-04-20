@@ -1,6 +1,6 @@
 {
   "name": "react-native-biometrics-2",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "summary": "A React Native library for biometrics",
   "description": "React Native biometric functionality for signing and encryption",
   "main": "build/cjs/index.js",
@@ -24,11 +24,11 @@
     "touch-id",
     "face-id"
   ],
-  "homepage": "https://github.com/Shasikhan/rn-biometrics",
+  "homepage": "https://github.com/Shasikhan/react-native-biometrics",
   "contributors": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Shasikhan/rn-biometrics.git"
+    "url": "git+https://github.com/Shasikhan/react-native-biometrics"
   },
   "private": false,
   "author": {
