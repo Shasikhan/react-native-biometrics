@@ -13,6 +13,20 @@
 
 RCT_EXPORT_MODULE(ReactNativeBiometrics);
 
+- (void)addAuthenticationContextToKeychainQuery:(NSMutableDictionary *)query
+                                   promptMessage:(NSString *)promptMessage
+                          interactionNotAllowed:(BOOL)interactionNotAllowed
+{
+  LAContext *context = [[LAContext alloc] init];
+  context.interactionNotAllowed = interactionNotAllowed;
+
+  if (promptMessage.length > 0) {
+    context.localizedReason = promptMessage;
+  }
+
+  query[(id)kSecUseAuthenticationContext] = context;
+}
+
 RCT_EXPORT_METHOD(isSensorAvailable: (NSDictionary *)params resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   LAContext *context = [[LAContext alloc] init];
   NSError *la_error = nil;
@@ -65,16 +79,20 @@ RCT_EXPORT_METHOD(createKeys: (NSDictionary *)params resolver:(RCTPromiseResolve
     }
 
     NSData *biometricKeyTag = [self getBiometricKeyTag];
+    NSMutableDictionary *privateKeyAttributes = [@{
+      (id)kSecAttrIsPermanent: @YES,
+      (id)kSecAttrApplicationTag: biometricKeyTag,
+      (id)kSecAttrAccessControl: (__bridge_transfer id)sacObject
+    } mutableCopy];
+    [self addAuthenticationContextToKeychainQuery:privateKeyAttributes
+                                    promptMessage:nil
+                           interactionNotAllowed:NO];
+
     NSDictionary *keyAttributes = @{
-                                    (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
-                                    (id)kSecAttrKeySizeInBits: @3072,
-                                    (id)kSecPrivateKeyAttrs: @{
-                                        (id)kSecAttrIsPermanent: @YES,
-                                        (id)kSecUseAuthenticationUI: (id)kSecUseAuthenticationUIAllow,
-                                        (id)kSecAttrApplicationTag: biometricKeyTag,
-                                        (id)kSecAttrAccessControl: (__bridge_transfer id)sacObject
-                                        }
-                                    };
+      (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
+      (id)kSecAttrKeySizeInBits: @3072,
+      (id)kSecPrivateKeyAttrs: privateKeyAttributes
+    };
 
     [self deleteBiometricKey];
     NSError *gen_error = nil;
@@ -133,13 +151,15 @@ RCT_EXPORT_METHOD(createSignature: (NSDictionary *)params resolver:(RCTPromiseRe
     NSString *signatureScheme = [RCTConvert NSString:params[@"signatureScheme"]]; // 👈 pass "pkcs1" or "pss"
 
     NSData *biometricKeyTag = [self getBiometricKeyTag];
-    NSDictionary *query = @{
-                            (id)kSecClass: (id)kSecClassKey,
-                            (id)kSecAttrApplicationTag: biometricKeyTag,
-                            (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
-                            (id)kSecReturnRef: @YES,
-                            (id)kSecUseOperationPrompt: promptMessage
-                            };
+    NSMutableDictionary *query = [@{
+      (id)kSecClass: (id)kSecClassKey,
+      (id)kSecAttrApplicationTag: biometricKeyTag,
+      (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
+      (id)kSecReturnRef: @YES
+    } mutableCopy];
+    [self addAuthenticationContextToKeychainQuery:query
+                                    promptMessage:promptMessage
+                           interactionNotAllowed:NO];
     SecKeyRef privateKey;
     OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&privateKey);
 
@@ -246,12 +266,14 @@ RCT_EXPORT_METHOD(biometricKeysExist: (RCTPromiseResolveBlock)resolve rejecter:(
 
 - (BOOL) doesBiometricKeyExist {
   NSData *biometricKeyTag = [self getBiometricKeyTag];
-  NSDictionary *searchQuery = @{
-                                (id)kSecClass: (id)kSecClassKey,
-                                (id)kSecAttrApplicationTag: biometricKeyTag,
-                                (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA,
-                                (id)kSecUseAuthenticationUI: (id)kSecUseAuthenticationUIFail
-                                };
+  NSMutableDictionary *searchQuery = [@{
+    (id)kSecClass: (id)kSecClassKey,
+    (id)kSecAttrApplicationTag: biometricKeyTag,
+    (id)kSecAttrKeyType: (id)kSecAttrKeyTypeRSA
+  } mutableCopy];
+  [self addAuthenticationContextToKeychainQuery:searchQuery
+                                  promptMessage:nil
+                         interactionNotAllowed:YES];
 
   OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)searchQuery, nil);
   return status == errSecSuccess || status == errSecInteractionNotAllowed;
@@ -271,11 +293,7 @@ RCT_EXPORT_METHOD(biometricKeysExist: (RCTPromiseResolveBlock)resolve rejecter:(
 
 - (NSString *)getBiometryType:(LAContext *)context
 {
-  if (@available(iOS 11, *)) {
-    return (context.biometryType == LABiometryTypeFaceID) ? @"FaceID" : @"TouchID";
-  }
-
-  return @"TouchID";
+  return (context.biometryType == LABiometryTypeFaceID) ? @"FaceID" : @"TouchID";
 }
 
 - (NSString *)keychainErrorToString:(OSStatus)error {
