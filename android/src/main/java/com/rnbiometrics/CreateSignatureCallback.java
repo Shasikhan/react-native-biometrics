@@ -27,7 +27,8 @@ public class CreateSignatureCallback extends BiometricPrompt.AuthenticationCallb
         if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON || errorCode == BiometricPrompt.ERROR_USER_CANCELED ) {
             WritableMap resultMap = new WritableNativeMap();
             resultMap.putBoolean("success", false);
-            resultMap.putString("error", "User cancellation");
+            resultMap.putString("error", "User cancelled biometric verification");
+            resultMap.putString("code", "ERR_USER_CANCELLED");
             this.promise.resolve(resultMap);
         } else {
             this.promise.reject(errString.toString(), errString.toString());

@@ -39,6 +39,7 @@ interface CreateSignatureResult {
   success: boolean;
   signature?: string;
   error?: string;
+  code?: string;
 }
 
 interface SimplePromptOptions {
@@ -50,6 +51,7 @@ interface SimplePromptOptions {
 interface SimplePromptResult {
   success: boolean;
   error?: string;
+  code?: string;
 }
 
 /**

@@ -11,7 +11,32 @@
 
 @implementation ReactNativeBiometrics
 
+static NSString *const RNBiometricsUserCancelledCode = @"ERR_USER_CANCELLED";
+
 RCT_EXPORT_MODULE(ReactNativeBiometrics);
+
+- (NSDictionary *)userCancelledResult {
+  return @{
+    @"success": @(NO),
+    @"error": @"User cancelled biometric verification",
+    @"code": RNBiometricsUserCancelledCode
+  };
+}
+
+- (BOOL)isUserCancellationStatus:(OSStatus)status {
+  return status == errSecUserCanceled;
+}
+
+- (BOOL)isUserCancellationError:(NSError *)error {
+  if (error == nil) {
+    return NO;
+  }
+
+  return error.code == errSecUserCanceled ||
+         error.code == LAErrorUserCancel ||
+         error.code == LAErrorSystemCancel ||
+         error.code == LAErrorAppCancel;
+}
 
 - (void)addAuthenticationContextToKeychainQuery:(NSMutableDictionary *)query
                                    promptMessage:(NSString *)promptMessage
@@ -187,16 +212,15 @@ RCT_EXPORT_METHOD(createSignature: (NSDictionary *)params resolver:(RCTPromiseRe
           @"signature": signatureString
         };
         resolve(result);
-      } else if (error.code == errSecUserCanceled) {
-        NSDictionary *result = @{
-          @"success": @(NO),
-          @"error": @"User cancellation"
-        };
-        resolve(result);
+      } else if ([self isUserCancellationError:error]) {
+        resolve([self userCancelledResult]);
       } else {
         NSString *message = [NSString stringWithFormat:@"Signature error: %@", error];
         reject(@"signature_error", message, nil);
       }
+      if (privateKey) CFRelease(privateKey);
+    } else if ([self isUserCancellationStatus:status]) {
+      resolve([self userCancelledResult]);
     } else {
       NSString *message = [NSString stringWithFormat:@"Key not found: %@",[self keychainErrorToString:status]];
       reject(@"storage_error", message, nil);
@@ -226,12 +250,8 @@ RCT_EXPORT_METHOD(simplePrompt: (NSDictionary *)params resolver:(RCTPromiseResol
           @"success": @(YES)
         };
         resolve(result);
-      } else if (biometricError.code == LAErrorUserCancel) {
-        NSDictionary *result = @{
-          @"success": @(NO),
-          @"error": @"User cancellation"
-        };
-        resolve(result);
+      } else if ([self isUserCancellationError:biometricError]) {
+        resolve([self userCancelledResult]);
       } else {
         NSString *message = [NSString stringWithFormat:@"%@", biometricError];
         reject(@"biometric_error", message, nil);

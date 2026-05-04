@@ -39,6 +39,7 @@ import java.security.spec.MGF1ParameterSpec;
 public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
     protected String biometricKeyAlias = "biometric_key";
+    private static final String USER_CANCELLED_CODE = "ERR_USER_CANCELLED";
 
     public ReactNativeBiometrics(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -203,7 +204,15 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
                                 biometricPrompt.authenticate(getPromptInfo(promptMessage, cancelButtonText, allowDeviceCredentials), cryptoObject);
                             } catch (Exception e) {
-                                promise.reject("Error signing payload: " + e.getMessage(), "Error generating signature: " + e.getMessage());
+                                if (isUserCancellationException(e)) {
+                                    WritableMap resultMap = new WritableNativeMap();
+                                    resultMap.putBoolean("success", false);
+                                    resultMap.putString("error", "User cancelled biometric verification");
+                                    resultMap.putString("code", USER_CANCELLED_CODE);
+                                    promise.resolve(resultMap);
+                                } else {
+                                    promise.reject("Error signing payload: " + e.getMessage(), "Error generating signature: " + e.getMessage());
+                                }
                             }
                         }
                     });
@@ -233,6 +242,15 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
     private boolean isCurrentSDK29OrEarlier() {
         return Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q;
+    }
+
+    private boolean isUserCancellationException(Exception e) {
+        String message = e.getMessage();
+        if (message == null) {
+            return false;
+        }
+
+        return message.contains("Key not found: -128");
     }
 
     @ReactMethod
